@@ -112,26 +112,88 @@ pattern holds, or whether ECGFounder/CLEF are unusually similar to *each other* 
 architecture) relative to a genuinely different design. Right now we only have two points and
 they happen to share a backbone — that's a real limitation of this first pass, not a footnote.
 
+## Finding 3 — a first SAE pass does *not* yet show the hypothesized feature-vs-subspace asymmetry, and that itself is worth reporting carefully
+
+Trained top-k SAEs (k=32) on ECGFounder's `stage_list.3` activations (400-dim, a peak layer for
+LVH/MI in Finding 1), 2,500 PTB-XL records, 5 random seeds, checked reconstruction quality and
+two stability metrics across all 10 seed pairs:
+
+- **Reconstruction**: explained variance 0.839-0.846 across seeds — consistent, and each SAE is
+  clearly learning real structure, not noise.
+- **Individual feature stability**: mean best-cosine-match across seed pairs = **0.18**
+  (median 0.18), and **zero** features exceed 0.8 cosine similarity with their best match in
+  another seed. Individual features are essentially not reproducible.
+- **Subspace stability**: principal angles between the top-20 PCA subspaces of the two SAEs'
+  decoder directions average **77.6°** (max 90° = fully orthogonal). This is *not* the
+  hypothesized "subspace stability > feature stability" pattern — by this measure, the
+  subspaces look nearly as unstable as the individual features.
+
+Before taking that second half at face value, I checked whether it's an artifact of using an
+overcomplete dictionary (1,600 features for a 400-dim input — with that much redundancy, any two
+random feature sets might trivially span the space similarly regardless of real structure). It
+isn't: re-running at 1x, 2x, and 4x the input dimension gives essentially the same numbers
+(feature match 0.171/0.174/0.180, subspace angle 76.5°/77.2°/77.9°) — ruling out dictionary size
+as the explanation.
+
+**How to read this honestly**: this does not confirm the project's primary hypothesis in its
+strong form, at least not with this operationalization, on this layer, at this scale. Two real
+possibilities, not mutually exclusive: (1) 2,500 examples and 150-200 training epochs may simply
+be too little for the SAEs to converge to a well-defined solution — an under-trained SAE would
+show poor reproducibility regardless of whether the underlying phenomenon is real, so this needs
+re-checking at full dataset scale with substantially more training before concluding anything
+strong; (2) "PCA of decoder vectors" may not be the right operationalization of "subspace" —
+the SAE-seed-reproducibility literature (e.g. Gerasimov et al. on seed dependence in SAEs, cited
+in [related-work.md](related-work.md)) generally restricts to the subset of features that at
+least partially match across seeds before asking whether *those* live in a common subspace,
+rather than PCA-ing the full overcomplete decoder set. That's a different, more targeted test
+than what's implemented here and is the natural next step before drawing a conclusion either way.
+
+This is exactly the kind of result that's easy to over- or under-sell — reported here as "first
+pass raises a real methodological question" rather than either "hypothesis confirmed" or
+"hypothesis refuted."
+
+## Finding 3b — a few SAE features correlate with specific concepts
+
+Using the seed-0 SAE (1,600 features) and each feature's sparse activation across the 2,500
+examples, point-biserial correlation against each concept label:
+
+| Concept | Top feature (r) | 2nd (r) | 3rd (r) |
+|---|---|---|---|
+| Atrial fibrillation | 876 (-0.32) | 730 (-0.28) | 815 (-0.28) |
+| Bundle branch block | 437 (+0.52) | 351 (+0.43) | 876 (-0.23) |
+| Normal rhythm | 351 (-0.45) | 1132 (+0.41) | 901 (+0.39) |
+| Left ventricular hypertrophy | 465 (+0.34) | 144 (-0.25) | 815 (-0.22) |
+| Myocardial infarction | 1132 (-0.36) | 351 (+0.28) | 901 (-0.25) |
+
+Feature 351 shows up for 3 of 5 concepts (BBB, NORM, MI) and feature 876 for 2 (AFib, BBB) —
+worth checking by hand whether those are genuinely polysemantic/shared features or an artifact
+of concept co-occurrence in the label set before reading anything into it. These correlations
+(|r| 0.22-0.52) are moderate, not the clean, near-deterministic single-feature story you'd want
+for a strong claim — reasonable for a first pass on 2,500 examples with no feature selection
+correction, but needs a held-out check (does feature 437 still correlate with BBB on data it
+didn't see?) before it's more than a lead worth following.
+
 ## What's not done yet
 
-- Full-dataset numbers (waiting on the PTB-XL download; script is identical, just point it at
-  the complete `data/raw/ptb-xl/` once available)
-- A third, architecturally distinct model for the CKA comparison (see caveat above) — this is
-  the main open gap for turning Finding 2 into an architecture-independence claim
-- Any SAE training, seed-reproducibility, or causal-ablation results — none of the SAE/subspace
-  machinery in `analysis/subspace.py` has been exercised yet, only implemented
+- ~~Full-dataset numbers~~ — PTB-XL is now fully downloaded (21,801 records); Findings 1-2 above
+  are still only on the 2,500-record sample and should be rerun at full scale
+- A third, architecturally distinct model for the CKA comparison (see Finding 2 caveat) — the
+  main open gap for turning it into an architecture-independence claim; ECG-JEPA integration is
+  in progress
+- Held-out validation of the Finding 3b feature-concept correlations
+- A more targeted subspace-stability test restricted to partially-matched features (see Finding
+  3 caveat), and a longer-trained SAE to rule out under-convergence
 - Formal statistical testing of the peak-vs-final-layer gaps (currently point estimates with
   seed-split std, not a significance test across a resampled test set)
 
 ## Suggested next steps toward a paper
 
-1. Let the full PTB-XL download finish and rerun both analyses at full scale (mechanical, no new
-   code needed)
-2. Add a third, architecturally distinct model (ECG-JEPA is the easiest next candidate — MIT,
-   ungated) to turn Finding 2 into an actual architecture-independence test
-3. Train a first small SAE on one layer/model and check whether any individual features
-   correlate with the 5 concepts — the more novel angle from the original research plan, not yet
-   attempted
+1. Rerun Findings 1-2 on the full 21,801-record dataset (mechanical, no new code needed — it's
+   downloaded now)
+2. Finish adding ECG-JEPA (in progress) to turn Finding 2 into an actual architecture-independence
+   test
+3. Re-run the SAE stability check with more training steps and, separately, with the
+   partially-matched-features-only subspace test, before drawing a conclusion from Finding 3
 4. Finding 1 (the cross-model depth-pattern replication) is arguably strong enough to anchor a
    paper's opening result even before the third-model/SAE work lands: "linear decodability of
    clinical ECG concepts peaks before the final layer for morphology-based diagnoses but not for

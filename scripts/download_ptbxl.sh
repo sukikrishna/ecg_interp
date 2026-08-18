@@ -17,7 +17,8 @@ wget -c -q --show-progress "$ZIP_URL" -O "$ZIP_PATH"
 
 rm -rf "$DEST"
 TMP_EXTRACT="$(mktemp -d)"
-unzip -q "$ZIP_PATH" -d "$TMP_EXTRACT"
+# Uses Python's zipfile instead of the `unzip` binary, which isn't installed everywhere.
+python3 -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$ZIP_PATH" "$TMP_EXTRACT"
 mv "$TMP_EXTRACT"/*/ "$DEST"
 rmdir "$TMP_EXTRACT"
 rm "$ZIP_PATH"

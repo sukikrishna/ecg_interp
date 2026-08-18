@@ -11,7 +11,7 @@ weights — the real friction, where it exists, is licensing rather than access-
 | **CLEF** | arXiv | Nokia Bell Labs | [github.com/Nokia-Bell-Labs/ecg-foundation-model](https://github.com/Nokia-Bell-Labs/ecg-foundation-model) | BSD-3-Clause-Clear | No — direct Zenodo links | Small 448K / Medium 30.7M / Large 296M params |
 | **ECGFounder** | NEJM AI 2025 | PKU Digital Health | [github.com/PKUDigitalHealth/ECGFounder](https://github.com/PKUDigitalHealth/ECGFounder) · HF `PKUDigitalHealth/ECGFounder` | MIT | No | ~370MB per checkpoint (12-lead and 1-lead variants) |
 | **ST-MEM** | ICLR 2024 | VUNO Inc. | [github.com/vuno/ST-MEM](https://github.com/vuno/ST-MEM) (weights via Google Drive) | **Proprietary — "VUNO Inc., All rights reserved"**, redistribution/derivative use barred without VUNO's permission | No click-through, but license itself is the blocker | Not stated |
-| **ECG-JEPA** | arXiv | S. Kim | [github.com/sehunfromdaegu/ECG_JEPA](https://github.com/sehunfromdaegu/ECG_JEPA) (Google Drive) | MIT | No | Not stated |
+| **ECG-JEPA** | arXiv | S. Kim | [github.com/sehunfromdaegu/ECG_JEPA](https://github.com/sehunfromdaegu/ECG_JEPA) (Google Drive, needs `gdown` — plain wget/curl fail on Drive's interstitial) | MIT | No | 326MB per checkpoint (random-masking and multi-block-masking variants; encoder alone is 85.4M params) |
 | **MERL** | ICML 2024 | Imperial College London | [github.com/cheliu-computation/MERL-ICML2024](https://github.com/cheliu-computation/MERL-ICML2024) (Google Drive) | MIT | No | Not stated |
 | **ECG-FM** | JAMIA Open 2025 | Bo Wang Lab, U. Toronto / Vector Institute | [github.com/bowang-lab/ECG-FM](https://github.com/bowang-lab/ECG-FM) · HF `wanglab/ecg-fm` | MIT | No | ~1.09GB pretrained, ~1.08GB finetuned (90.9M params) — needs their fairseq-based loader, not vanilla `transformers` |
 | **HuBERT-ECG** | arXiv | E. Coppola et al. | HF `Edoardo-BS/hubert-ecg-base` | **CC-BY-NC-4.0 — non-commercial only** | No | ~372.5MB (~93.1M params) |
@@ -39,6 +39,18 @@ weights — the real friction, where it exists, is licensing rather than access-
   (BSD-3-Clause-Clear / MIT) and fully open, no account needed. ECGFounder is the smaller,
   simpler integration (plain `.pth` + HF hosting), so it's the first one wired up end-to-end in
   [`examples/`](../examples/); CLEF is the natural next model to add.
+- **ECG-JEPA is confirmed (by actually instantiating it and checking for `Conv1d`/`Conv2d`) to
+  be a genuine transformer/JEPA architecture** — multi-head attention blocks, patch embedding
+  via a plain linear layer (`W_P`), no convolutions anywhere. This is what makes it useful here:
+  it's the model that can turn the CLEF/ECGFounder comparison into an actual
+  architecture-independence test instead of a same-backbone one. It expects a specific 8-lead
+  subset (I, II, V1-V6 — III/aVR/aVL/aVF are dropped since they're linearly derivable from I &
+  II), 2500 samples (10s at an effective 250Hz), no z-scoring. **Dependency caution**: installing
+  its `timm` requirement naively pulls in a CUDA build of torch and an incompatible torchvision,
+  silently breaking an existing CPU-only install — `scripts/setup_ecgjepa.sh` pins torch via a
+  constraints file and installs the rest with `--no-deps` to avoid this; verify
+  `python3 -c "import torch; print(torch.__version__)"` still shows the expected build after
+  running it.
 
 ## Other modalities noted for a possible follow-on study
 
