@@ -10,11 +10,14 @@ review this plan is built on.
 
 ## Status
 
-Early stage. What's currently wired up end to end: download PTB-XL, load ECGFounder, extract
-intermediate-layer activations for 5 clinical concepts, and train a first linear probe per layer
-per concept (`examples/extract_ecgfounder_activations.py`). SAE training, seed-reproducibility
-analysis, cross-model transfer, and causal ablation (the rest of the plan in
-[docs/research-plan.md](docs/research-plan.md)) are designed but not yet implemented.
+Early stage. What's currently wired up end to end: download PTB-XL, load ECGFounder and CLEF,
+extract intermediate-layer activations for 5 clinical concepts, train linear probes per
+layer/concept, and compare the two models' representations via linear CKA
+(`examples/extract_ecgfounder_activations.py`, `examples/compare_ecgfounder_clef.py`). See
+[docs/preliminary-results.md](docs/preliminary-results.md) for what that's turned up so far —
+still on a partial sample, not final numbers. SAE training, seed-reproducibility analysis, and
+causal ablation (the rest of the plan in [docs/research-plan.md](docs/research-plan.md)) are
+designed but not yet implemented.
 
 ## Repo structure
 
@@ -51,17 +54,21 @@ if this project later extends to credentialed datasets like MIMIC-IV.
 
 ```bash
 bash scripts/setup_ecgfounder.sh   # clones ECGFounder source + downloads its weights (~740MB)
+bash scripts/setup_clef.sh         # clones CLEF source + downloads its medium checkpoint (~370MB)
 ```
 
 See [docs/models.md](docs/models.md) for the full candidate-model list (CLEF, ECGFounder,
 ST-MEM, ECG-JEPA, MERL, ECG-FM, HuBERT-ECG, ...) with license and access notes for each — flags
 which ones are permissively licensed vs. which have real usage restrictions (ST-MEM is
-proprietary; HuBERT-ECG is non-commercial-only).
+proprietary; HuBERT-ECG is non-commercial-only). It also flags that ECGFounder and CLEF share
+the identical backbone architecture — worth reading before over-interpreting any
+ECGFounder-vs-CLEF comparison as "cross-architecture."
 
-## Running the first example
+## Running the examples
 
 ```bash
-python examples/extract_ecgfounder_activations.py
+python examples/extract_ecgfounder_activations.py   # single-model depth profile
+python examples/compare_ecgfounder_clef.py           # cross-model CKA + probing
 ```
 
 ## License

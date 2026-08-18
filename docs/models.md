@@ -23,6 +23,18 @@ weights — the real friction, where it exists, is licensing rather than access-
   Treat as lower priority unless we specifically need it.
 - **HuBERT-ECG** is non-commercial only (CC-BY-NC-4.0), which is fine for academic research/
   publication but worth remembering if anything downstream becomes commercial.
+- **CLEF and ECGFounder are the identical backbone.** Both instantiate the exact same `Net1D`
+  configuration (same `filter_list`/`m_blocks_list` at every stage, verified against both
+  repos' source) — they differ in training data/objective (ECGFounder: supervised 150-class
+  diagnostic classification; CLEF: SimCLR-style contrastive pretraining on MIMIC-IV-ECG), not
+  architecture. Any "shared representation" finding between the two is evidence about
+  training-objective effects on a fixed architecture, **not** architecture-independence — see
+  [preliminary-results.md](preliminary-results.md). For an architecture-independence claim,
+  add a third, structurally different model (ECG-JEPA is the easiest next candidate: MIT,
+  ungated).
+- CLEF's exact Zenodo record: [10.5281/zenodo.17572734](https://zenodo.org/records/17572734)
+  (`clef_small.ckpt` 5.5MB, `clef_medium.ckpt` 368MB, `clef_largel.ckpt` ~3.6GB — the `l` typo
+  in "largel" is Zenodo's own filename, not a mistake here).
 - Starting pair per the original plan: **CLEF + ECGFounder** — both permissively licensed
   (BSD-3-Clause-Clear / MIT) and fully open, no account needed. ECGFounder is the smaller,
   simpler integration (plain `.pth` + HF hosting), so it's the first one wired up end-to-end in

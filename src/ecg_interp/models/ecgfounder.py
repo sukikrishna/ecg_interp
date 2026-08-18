@@ -81,7 +81,7 @@ class ECGFounder(ECGModel):
 
     @property
     def layer_names(self) -> List[str]:
-        return ["first_conv", "stage_list.0", "stage_list.3", "stage_list.6"]
+        return ["first_conv"] + [f"stage_list.{i}" for i in range(7)]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
