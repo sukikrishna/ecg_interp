@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.ipynb_checkpoints/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Claude Code project config (kept local only, never part of this repo)
+.claude/
+CLAUDE.md
+
+# Data — fetched via scripts/download_*.sh, not committed
+data/raw/
+data/processed/
+*.dat
+*.hea
+*.h5
+*.npz
+
+# Pretrained weights — fetched via scripts/download_*.py, not committed
+weights/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+
+# Cloned external model source (not ours to vendor/commit — fetched via scripts/setup_*.sh)
+external/
+
+# Run outputs
+outputs/
+runs/
+wandb/
+*.log
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Raw personal working notes — distilled into docs/ instead of committed verbatim
+proj.txt
+SUD _ Research Project Proposals.pdf
