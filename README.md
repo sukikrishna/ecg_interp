@@ -10,14 +10,15 @@ review this plan is built on.
 
 ## Status
 
-Early stage. What's currently wired up end to end: download PTB-XL, load ECGFounder and CLEF,
-extract intermediate-layer activations for 5 clinical concepts, train linear probes per
-layer/concept, and compare the two models' representations via linear CKA
-(`examples/extract_ecgfounder_activations.py`, `examples/compare_ecgfounder_clef.py`). See
-[docs/preliminary-results.md](docs/preliminary-results.md) for what that's turned up so far —
-still on a partial sample, not final numbers. SAE training, seed-reproducibility analysis, and
-causal ablation (the rest of the plan in [docs/research-plan.md](docs/research-plan.md)) are
-designed but not yet implemented.
+Early stage. Three models wired up end to end — ECGFounder, CLEF (both the same `Net1D` CNN
+backbone), and ECG-JEPA (a genuine transformer, confirmed by inspection) — with intermediate-
+layer activation extraction, linear probing for 5 clinical concepts, and cross-model comparison
+via linear CKA, all run on the **full PTB-XL dataset** (21,799 records). A first top-k SAE pass
+(seed-reproducibility + concept-correlation) has also run, on a smaller sample. See
+[docs/preliminary-results.md](docs/preliminary-results.md) for the actual findings, including an
+explicit account of which small-sample results held up at full scale and which didn't. SAE
+results still need a full-scale rerun; cross-model causal ablation (the rest of the plan in
+[docs/research-plan.md](docs/research-plan.md)) isn't implemented yet.
 
 ## Repo structure
 
@@ -55,21 +56,32 @@ if this project later extends to credentialed datasets like MIMIC-IV.
 ```bash
 bash scripts/setup_ecgfounder.sh   # clones ECGFounder source + downloads its weights (~740MB)
 bash scripts/setup_clef.sh         # clones CLEF source + downloads its medium checkpoint (~370MB)
+bash scripts/setup_ecgjepa.sh      # clones ECG-JEPA source + downloads its checkpoint (~326MB)
 ```
+
+`setup_ecgjepa.sh` installs `timm`, which by default pulls in a CUDA build of torch and an
+incompatible torchvision, silently breaking a CPU-only install — the script guards against this,
+but verify `python3 -c "import torch; print(torch.__version__)"` still shows what you expect
+after running it.
 
 See [docs/models.md](docs/models.md) for the full candidate-model list (CLEF, ECGFounder,
 ST-MEM, ECG-JEPA, MERL, ECG-FM, HuBERT-ECG, ...) with license and access notes for each — flags
 which ones are permissively licensed vs. which have real usage restrictions (ST-MEM is
 proprietary; HuBERT-ECG is non-commercial-only). It also flags that ECGFounder and CLEF share
-the identical backbone architecture — worth reading before over-interpreting any
-ECGFounder-vs-CLEF comparison as "cross-architecture."
+the identical backbone architecture, while ECG-JEPA is a genuine transformer — worth reading
+before over-interpreting any two-model comparison as "cross-architecture" when it might not be.
 
 ## Running the examples
 
 ```bash
 python examples/extract_ecgfounder_activations.py   # single-model depth profile
-python examples/compare_ecgfounder_clef.py           # cross-model CKA + probing
+python examples/compare_ecgfounder_clef.py           # 2-model CKA + probing (same architecture)
+python examples/compare_three_models.py              # 3-model CKA + probing (incl. ECG-JEPA)
 ```
+
+The 3-model comparison processes data in chunks and is CPU-heavy — expect it to take hours on
+the full dataset, not minutes; pass a smaller `n_records` if you just want to sanity-check it
+runs. See [docs/preliminary-results.md](docs/preliminary-results.md) for what a full run found.
 
 ## License
 
