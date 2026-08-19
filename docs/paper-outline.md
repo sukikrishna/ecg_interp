@@ -13,8 +13,10 @@ Three result threads exist right now (see [preliminary-results.md](preliminary-r
    constant ratio at every stage — documented as a real limitation, not hidden). **Ready to be
    the paper's spine.**
 2. **Cross-model CKA, including the counter-intuitive different-architecture-more-similar
-   result** — full dataset, but only 3 depth points per model pair so far (full per-layer sweep
-   in progress as of this writing). **Ready pending that sweep landing.**
+   result** — full dataset, full per-layer sweep now complete (112 layer-pairs per model pair,
+   not just 3 hand-picked depths): the different-architecture pair's peak CKA (0.610) and mean
+   CKA (0.228) both come in well above either pair involving the same-architecture model
+   (max 0.328, mean ≤0.128). **Ready.**
 3. **SAE feature/subspace stability** — 2,500-record sample only, didn't show the hypothesized
    effect, likely under-trained, methodology may not match how the literature does this
    comparison. **Not ready.** Forcing this into the submission either dilutes the paper with an
@@ -107,8 +109,10 @@ is well-motivated but not causally tested (no ablation of pooling itself).
 
 ## What's still needed before a draft exists
 
-- [ ] Full per-layer CKA sweep (running now) — produces the heatmap figures for 4.2
-- [ ] Decide the title/framing once B is confirmed at full resolution
+- [x] Full per-layer CKA sweep — done, confirmed and strengthened the finding; heatmap figure at
+  `docs/figures/full_layer_cka_heatmaps.png`
+- [ ] Decide the title/framing (Finding B is now the better-confirmed of the two candidates for
+  the paper's lead, given how much the full sweep strengthened it)
 - [ ] Write actual prose for each section (this outline is not a draft)
 - [ ] Decide the SAE-section scope call above once the rest of the draft exists
 - [ ] Check ML4H's page limit and formatting template before drafting (not yet looked up)

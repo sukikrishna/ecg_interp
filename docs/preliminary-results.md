@@ -67,39 +67,58 @@ CLEF are CNNs that progressively downsample the temporal axis through strided co
 token sequence at every layer** (attention re-weights content but never pools away positions).
 If late-layer decodability loss is caused by genuine information loss from temporal pooling,
 that predicts exactly what's observed: the two CNNs lose some ground late, the non-pooling
-transformer doesn't. That's a testable mechanistic claim, not just curve-reading — you could
-check it directly (e.g. see whether ECGFounder layers that pool more aggressively lose more
-concept information, correlating pooling ratio with AUC drop across its 7 stages).
+transformer doesn't.
 
-## Finding 2 — the architecturally different model pair shows *higher* late-layer similarity than the same-architecture pair
+**One specific test of this that turned out not to work, noted so it isn't tried again the same
+way**: correlating each ECGFounder stage's pooling ratio against its AUC change doesn't work as
+a within-model test, because ECGFounder pools by an essentially constant ~2x ratio at *every*
+stage transition (verified: 0.500, 0.500, 0.501, 0.502, 0.503, 0.506, 0.500) — there's no
+variation across stages to correlate against. The real evidence for the pooling explanation is
+the model-level contrast already described above (poolers decline, the non-pooler doesn't), not
+a within-model dose-response curve. A real causal test would need either an architecture with
+varying pool ratios across depth (none of the three models here have that) or trained ablations
+that vary pooling directly — worth flagging as a genuine next step rather than something
+answerable with the models already on hand.
 
-Linear CKA (Kornblith et al., 2019) at three matched relative depths (early / mid / late),
-full dataset, same-lead-I (or native 8-lead for ECG-JEPA) inputs:
+## Finding 2 — the architecturally different model pair shows *higher* similarity than the same-architecture pair, confirmed across the full layer grid
 
-| Pair | Early | Mid | Late |
-|---|---|---|---|
-| ECGFounder-1lead vs. CLEF-medium (**same architecture**) | 0.082 | 0.103 | 0.236 |
-| ECGFounder-1lead vs. ECG-JEPA (**different architecture**) | 0.003 | 0.232 | **0.535** |
-| CLEF-medium vs. ECG-JEPA (**different architecture**) | 0.002 | 0.151 | 0.136 |
+![Full per-layer CKA heatmaps](figures/full_layer_cka_heatmaps.png)
 
-This is the most counter-intuitive result so far, and worth double-checking rather than taking
-at face value: the ECGFounder/ECG-JEPA pair — two genuinely different architectures — ends up
-**more similar at the late layer (0.535) than either same-architecture-adjacent comparison**
-(ECGFounder/CLEF tops out at 0.236). If this holds up, it argues against a simple "architecture
-determines representation" story and for something else being the dominant factor — though
-ECGFounder and ECG-JEPA also differ in training data, so this doesn't cleanly isolate
-architecture as the explanation on its own; it just rules out "shared architecture is sufficient
-for shared representation" (ECGFounder/CLEF already showed that) and now additionally suggests
-shared architecture isn't *necessary* for higher similarity either. All three pairs still sit
-well below what you'd expect from two runs of the truly same model — "similar" here is relative,
-not high in an absolute sense.
+Full pairwise linear CKA (Kornblith et al., 2019) — every one of ECGFounder-1lead's/CLEF-medium's
+8 layers against every one of the other model's layers in each pair (112 cells for the CNN-CNN
+pair, 8×14=112 for each CNN-vs-ECG-JEPA pair), full dataset, same-Lead-I (or native 8-lead for
+ECG-JEPA) inputs — not just the 3 hand-picked depth points from the first pass:
 
-**Caveats**: only 3 depth points per pair (not a full per-layer sweep like Finding 1, to keep
-this tractable), and CKA between models with different native input richness (12 vs. 1 vs. 8
-leads, effectively) is a real but imperfect comparison — some of what's measured could reflect
-input information differences rather than purely learned representation differences. Worth a
-full per-layer CKA sweep (all 8 ECGFounder/CLEF points against all 14 ECG-JEPA points) as a
-follow-up rather than just the 3 chosen depths here.
+| Pair | Max CKA (location) | Mean CKA across all cells |
+|---|---|---|
+| ECGFounder-1lead vs. CLEF-medium (**same architecture**) | 0.328 (stage 1 / stage 0) | 0.122 |
+| ECGFounder-1lead vs. ECG-JEPA (**different architecture**) | **0.610** (stage 5 / `norm`) | **0.228** |
+| CLEF-medium vs. ECG-JEPA (**different architecture**) | 0.268 (stage 5 / block 3) | 0.128 |
+
+This is the most counter-intuitive result in the project so far, and the full sweep makes it
+*stronger*, not weaker, than the initial 3-point check: the ECGFounder/ECG-JEPA pair — two
+genuinely different architectures — has both a higher peak (0.610 vs. 0.328) and roughly
+**double the average similarity** (0.228 vs. 0.122-0.128) across the entire layer grid compared
+to either pair involving CLEF. That rules out "the 3-point check happened to land on a lucky
+cell" as an explanation. It also revises one detail from the first pass: the best-aligned layers
+aren't at matching depth indices (ECGFounder's peak alignment with CLEF is stage 1↔stage 0, not
+same-index-to-same-index) — worth remembering before assuming same-index layers are the right
+thing to compare across models in general.
+
+If this holds up under further scrutiny, it argues against a simple "architecture determines
+representation" story and for something else being the dominant factor — though ECGFounder and
+ECG-JEPA also differ in training data, so this doesn't cleanly isolate architecture as *the*
+explanation on its own; it rules out "shared architecture is sufficient for shared
+representation" (ECGFounder/CLEF already showed that) and now additionally suggests shared
+architecture isn't *necessary* for higher similarity either. All three pairs still sit well
+below what you'd expect from two runs of the truly same model — "similar" here is relative, not
+high in an absolute sense.
+
+**Caveats**: CKA between models with different native input richness (12 vs. 1 vs. 8 leads,
+effectively) is a real but imperfect comparison — some of what's measured could reflect input
+information differences rather than purely learned representation differences. The full CKA
+matrices are in
+[`results/full_layer_cka_21799sample.json`](../results/full_layer_cka_21799sample.json).
 
 ## Finding 3 — a first SAE pass does *not* yet show the hypothesized feature-vs-subspace asymmetry (still on the 2,500-record sample)
 
@@ -169,26 +188,27 @@ claim from a small sample the way you can trust a similarity-score claim from th
 ## What's not done yet
 
 - SAE results (Finding 3, 3b) are still on the 2,500-record sample — full-scale rerun with more
-  training epochs is the natural next step, per the Finding 3 caveats
+  training epochs is the natural next step, per the Finding 3 caveats (see
+  [paper-outline.md](paper-outline.md) for the scope call to leave this out of the ML4H
+  submission for now)
 - Held-out validation of the Finding 3b feature-concept correlations
-- A full per-layer CKA sweep across all three models (Finding 2 currently only checked 3 depth
-  points per pair)
-- A direct test of the pooling-causes-decline explanation in Finding 1 (correlate each
-  ECGFounder stage's temporal downsampling ratio with its concept-AUC drop)
+- ~~A full per-layer CKA sweep across all three models~~ — done, see Finding 2 above
+- A causal (not just correlational) test of the pooling-causes-decline explanation in Finding 1
+  — the within-ECGFounder correlation doesn't work (pooling ratio is constant across its
+  stages, see Finding 1), so this needs either a varying-pool-ratio architecture or a trained
+  ablation, neither of which exists yet
 - Formal statistical testing (the drops and CKA differences look real relative to their seed
   variability, but nothing here is a formal significance test yet)
 
 ## Suggested next steps toward a paper
 
-1. The Finding 1 pooling-vs-no-pooling explanation is a concrete, testable mechanistic claim —
-   worth prioritizing over adding more models, since it would explain *why* representation
-   quality is architecture-dependent rather than just showing that it is
-2. Finding 2's counter-intuitive result (different-architecture pair more similar than
-   same-architecture pair) deserves the full per-layer CKA sweep before going further with it —
-   right now it rests on 3 depth points per pair
-3. Re-run the SAE stability check (Finding 3) at full scale with more training steps, and
-   separately with a partially-matched-features-only subspace test, before drawing any
-   conclusion from it either way
+1. Start drafting actual prose against [paper-outline.md](paper-outline.md) — Findings 1 and 2
+   are both now at full dataset scale with reasonably thorough checks (Finding 1 self-corrected
+   on the pooling-ratio test, Finding 2 confirmed and strengthened by the full layer sweep)
+2. Check ML4H's page limit/template and do a related-work pass specifically on whether the
+   cross-architecture CKA result has independent precedent (see paper-outline.md's checklist)
+3. SAE stability (Finding 3) is scoped out of the current paper plan — revisit only if there's
+   spare time after 1-2, per [paper-outline.md](paper-outline.md)
 4. Given how much the peak-location story changed between 2,500 and 21,799 records, be wary of
    reading too much into any further small-sample exploratory run without a full-scale check
    before it goes in a paper
